@@ -9,6 +9,7 @@ HEADERS = ({'User-Agent':
             'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
             (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36', 'Accept-Language': 'en-US, en;q=0.5'})
 title = []
+current_pr_status = []
 pr_raiser = []
 branch_update_request = []
 reviewer = []
@@ -16,7 +17,7 @@ raised_review_from = []
 # put range of PRs
 for i in range(202, 242):
     res = requests.get('https://gitea-working.testrail-staging.com/Gurock/automation-testrail/pulls/'+str(i),
-                       auth=HTTPBasicAuth('<your username>', '<your password>'), headers=HEADERS)
+                       auth=HTTPBasicAuth('<your username>', 'your password'), headers=HEADERS)
     if res.status_code != 200:
         print("The status code is ", res.status_code)
     soup_data = BeautifulSoup(res.text, 'html.parser')
@@ -26,6 +27,9 @@ for i in range(202, 242):
     title.append("PR" + str(title_text).replace('<title>', '').replace('</title>', '').replace(
         '-  automation-testrail - Gitea: Git with a cup of tea', ''))
     tree = html.fromstring(res.content)
+    pr_status = tree.xpath("//div[contains(@class,'title')]/div[contains(@class, 'large label')]/text()")[0]
+    current_pr_status.append(pr_status)
+    print("Status of PR#" + str(i) + "is : " + str(pr_status))
     try:
         pr_raised_by = tree.xpath("//span[@id='pull-desc']/a/text()")[0]
         pr_raiser.append(pr_raised_by)
@@ -64,8 +68,9 @@ for i in range(202, 242):
     continue
 
 # dictionary of lists
-dictionary_frame = {'Title': title, 'Raised By': pr_raiser, 'Branch Update Required': branch_update_request,
-                    'Reviewer': reviewer, 'Raised to Reviewer from': raised_review_from}
+dictionary_frame = {'Title': title, 'Current PR Status': current_pr_status, 'Raised By': pr_raiser,
+                    'Branch Update Required': branch_update_request, 'Reviewer': reviewer,
+                    'Raised to Reviewer from': raised_review_from}
 
 dataframe = pd.DataFrame(dictionary_frame)
 
