@@ -6,7 +6,6 @@ from requests.auth import HTTPBasicAuth
 from lxml import html
 import pandas as pd
 import openpyxl
-from datetime import datetime
 
 HEADERS = ({'User-Agent':
             'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
@@ -17,8 +16,9 @@ pr_raiser = []
 branch_update_request = []
 reviewer = []
 raised_review_from = []
+having_conflicts = []
 # put range of PRs
-for i in range(202, 203):
+for i in range(202, 245):
     res = requests.get('https://gitea-working.testrail-staging.com/Gurock/automation-testrail/pulls/'+str(i),
                        auth=HTTPBasicAuth(sys.argv[1].split("=")[-1], sys.argv[2].split("=")[-1]), headers=HEADERS)
     if res.status_code != 200:
@@ -40,29 +40,58 @@ for i in range(202, 203):
         try:
             branch_update = tree.xpath("//button[@data-do='update']/span/text()")[0]
             branch_update_request.append("True")
+            having_conflicts.append("NA")
             reviewer.append("NA")
             raised_review_from.append("NA")
-            print(f"PR# {i} needs to be updated as received '"+str(branch_update)+"' from PR")
+            print(f"PR# {i} needs to be updated as received '"+str(
+                branch_update).replace('\t', '').replace('\n', '')+"' from PR")
         except Exception as error:
             branch_update_request.append("False")
             print(f"As Error {error} Received no PR update for PR# :".replace(
                 'As Error list index out of range ', '') + str(i) + "\nmeans no update branch required\n")
             try:
-                assignee = tree.xpath(
-                    "//div[@class='review-item' and .//span[contains(@class,'yellow')]]/div/span/a/text()")[0]
-                time_opened = tree.xpath(
-                    "//div[@class='review-item' and .//span[contains(@class,'yellow')]]/div/span/span/text()")[0]
-                reviewer.append(assignee)
-                raised_review_from.append(time_opened)
-                print("PR in review with : " + str(assignee) + "\nfrom : " + str(time_opened))
-            except Exception as error:
-                reviewer.append("NA")
-                raised_review_from.append("NA")
-                print(f"Error {error} Received other request for PR# : ".replace(
-                    'Error list index out of range ', '') + str(i) + "\nmeans PR not in review")
+                conflict = tree.xpath("//div[contains(@class,'merge-section')]/div/text()")[1]
+                if 'conflicting' in conflict:
+                    print(f"PR# {i} needs to checked with conflicts as received '" + str(conflict) + "' from PR")
+                    having_conflicts.append("True")
+                    reviewer.append("NA")
+                    raised_review_from.append("NA")
+                else:
+                    having_conflicts.append("False")
+                    print(f"PR# {i} having No conflicts as received '" + str(conflict) + "' from PR")
+                    try:
+                        assignee = tree.xpath(
+                            "//div[@class='review-item' and .//span[contains(@class,'yellow')]]/div/span/a/text()")[0]
+                        time_opened = tree.xpath(
+                            "//div[@class='review-item' and .//span[contains(@class,'yellow')]]/div/span/span/text()")[
+                            0]
+                        reviewer.append(assignee)
+                        raised_review_from.append(time_opened)
+                        print("PR in review with : " + str(assignee) + "\nfrom : " + str(time_opened))
+                    except Exception as error:
+                        reviewer.append("NA")
+                        raised_review_from.append("NA")
+                        print(f"Error {error} Received other request for PR# : ".replace(
+                            'Error list index out of range ', '') + str(i) + "\nmeans PR not in review")
+            except IndexError:
+                having_conflicts.append("False")
+                try:
+                    assignee = tree.xpath(
+                        "//div[@class='review-item' and .//span[contains(@class,'yellow')]]/div/span/a/text()")[0]
+                    time_opened = tree.xpath(
+                        "//div[@class='review-item' and .//span[contains(@class,'yellow')]]/div/span/span/text()")[0]
+                    reviewer.append(assignee)
+                    raised_review_from.append(time_opened)
+                    print("PR in review with : " + str(assignee) + "\nfrom : " + str(time_opened))
+                except Exception as error:
+                    reviewer.append("NA")
+                    raised_review_from.append("NA")
+                    print(f"Error {error} Received other request for PR# : ".replace(
+                        'Error list index out of range ', '') + str(i) + "\nmeans PR not in review")
     except IndexError:
         pr_raiser.append("NA")
         branch_update_request.append("NA")
+        having_conflicts.append("NA")
         reviewer.append("NA")
         raised_review_from.append("NA")
         print("PR seems to be closed or merged")
@@ -72,13 +101,11 @@ for i in range(202, 203):
 
 # dictionary of lists
 dictionary_frame = {'Title': title, 'Current PR Status': current_pr_status, 'Raised By': pr_raiser,
-                    'Branch Update Required': branch_update_request, 'Reviewer': reviewer,
-                    'Raised to Reviewer from': raised_review_from}
+                    'Branch Update Required': branch_update_request, 'Having Conflicts': having_conflicts,
+                    'Reviewer': reviewer, 'Raised to Reviewer from': raised_review_from}
 
 dataframe = pd.DataFrame(dictionary_frame)
 
-time_run = datetime.now().strftime("%b %d, %Y at %H:%M")
-
 # saving the dataframe
-dataframe.to_csv('Report.csv', index=False)
-dataframe.to_excel('Report.xlsx', sheet_name='Current PR Status', index=False)
+dataframe.to_csv('Report_New.csv', index=False)
+dataframe.to_excel('Report_New.xlsx', sheet_name='Current PR Status', index=False)
