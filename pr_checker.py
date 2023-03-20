@@ -1,9 +1,12 @@
+import sys
+
 import requests
 from bs4 import BeautifulSoup
 from requests.auth import HTTPBasicAuth
 from lxml import html
 import pandas as pd
 import openpyxl
+from datetime import datetime
 
 HEADERS = ({'User-Agent':
             'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
@@ -15,9 +18,9 @@ branch_update_request = []
 reviewer = []
 raised_review_from = []
 # put range of PRs
-for i in range(202, 242):
+for i in range(202, 203):
     res = requests.get('https://gitea-working.testrail-staging.com/Gurock/automation-testrail/pulls/'+str(i),
-                       auth=HTTPBasicAuth('<your username>', 'your password'), headers=HEADERS)
+                       auth=HTTPBasicAuth(sys.argv[1].split("=")[-1], sys.argv[2].split("=")[-1]), headers=HEADERS)
     if res.status_code != 200:
         print("The status code is ", res.status_code)
     soup_data = BeautifulSoup(res.text, 'html.parser')
@@ -29,7 +32,7 @@ for i in range(202, 242):
     tree = html.fromstring(res.content)
     pr_status = tree.xpath("//div[contains(@class,'title')]/div[contains(@class, 'large label')]/text()")[0]
     current_pr_status.append(pr_status)
-    print("Status of PR#" + str(i) + "is : " + str(pr_status))
+    print("Status of PR#" + str(i) + " is : " + str(pr_status))
     try:
         pr_raised_by = tree.xpath("//span[@id='pull-desc']/a/text()")[0]
         pr_raiser.append(pr_raised_by)
@@ -73,6 +76,8 @@ dictionary_frame = {'Title': title, 'Current PR Status': current_pr_status, 'Rai
                     'Raised to Reviewer from': raised_review_from}
 
 dataframe = pd.DataFrame(dictionary_frame)
+
+time_run = datetime.now().strftime("%b %d, %Y at %H:%M")
 
 # saving the dataframe
 dataframe.to_csv('Report.csv', index=False)
