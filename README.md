@@ -8,4 +8,5 @@ pip install -r requirements.txt before running *.py script
 
 next run --
 
-python pr_checker.py username='<your username>' password='your password'
+python pr_checker.py
+fill the prompt input with username and password
